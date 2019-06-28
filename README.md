@@ -1,6 +1,6 @@
 # PgColumnBytePacker
 
-tl;dr: Modifies ActiveRecord's table creation tree walker to automatically re-order columns by alignment size to optimize on disk layout. The general idea and relevant PostgreSQL internals are described in [https://www.2ndquadrant.com/en/blog/on-rocks-and-sand/](On Rocks and Sand).
+tl;dr: Modifies ActiveRecord's table creation tree walker to automatically re-order columns by alignment size to optimize on disk layout. The general idea and relevant PostgreSQL internals are described in [On Rocks and Sand](https://www.2ndquadrant.com/en/blog/on-rocks-and-sand/).
 
 Note: Because you need the full table definition to re-order columns, the most benefit occurs when the full table is created in one step (rather than added onto with repeated `add_column` migrations).
 
