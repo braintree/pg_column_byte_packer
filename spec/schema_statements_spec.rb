@@ -1,8 +1,6 @@
 RSpec.describe PgColumnBytePacker::SchemaCreation do
   def with_connection(config, &block)
     ActiveRecord::Base.establish_connection(config)
-    # spec = ActiveRecord::ConnectionAdapters::ConnectionSpecification::Resolver.new({}).spec(config)
-    # connection_pool = ActiveRecord::ConnectionAdapters::ConnectionPool.new(spec)
     begin
       block.call
     ensure
