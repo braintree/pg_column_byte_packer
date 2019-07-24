@@ -30,7 +30,6 @@ module PgColumnBytePacker
         columns_hash[name] = column
       end
 
-      # binding.pry
       super(o)
     end
   end

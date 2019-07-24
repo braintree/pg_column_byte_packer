@@ -69,13 +69,13 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
     it "orders timestamps along with int8" do
       migration.create_table(:tests, :id => false) do |t|
         t.timestamp :d_timestamp
-        t.integer :b_int4, :limit => 8
+        t.integer :b_int8, :limit => 8
         t.datetime :a_timestamp
-        t.integer :c_int4, :limit => 8
+        t.integer :c_int8, :limit => 8
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_timestamp", "b_int4", "c_int4", "d_timestamp"])
+      expect(ordered_columns).to eq(["a_timestamp", "b_int8", "c_int8", "d_timestamp"])
     end
 
     it "orders an int8 primary key at the beginning of the 8-byte alignment group" do
@@ -265,10 +265,10 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
     it "orders text after int4" do
       migration.create_table(:tests, :id => false) do |t|
-        t.citext :a_text
+        t.text :a_text
         t.integer :b_int4, :limit => 4
         t.integer :c_int4, :limit => 4
-        t.citext :d_text
+        t.text :d_text
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
@@ -429,7 +429,6 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a", "b", "c"])
-
     end
   end
 end
