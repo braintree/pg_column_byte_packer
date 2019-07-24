@@ -8,7 +8,7 @@ module PgColumnBytePacker
   def self.ordering_key_for_column(connection:, name:, sql_type:, primary_key:, nullable:, has_default:)
     alignment = PgColumnBytePacker.sql_type_alignment_cache[sql_type] ||=
       case sql_type
-      when "bigint", "timestamp", /\Abigserial( primary key)?/
+      when "bigint", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
       when "integer", "date", "decimal", "float", /\Aserial( primary key)?/
         4 # Actual alignment for these types.
@@ -68,3 +68,4 @@ module PgColumnBytePacker
 end
 
 require "pg_column_byte_packer/schema_statements"
+require "pg_column_byte_packer/pg_dump"
