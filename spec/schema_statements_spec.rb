@@ -89,16 +89,32 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["id", "a_int8", "created_at", "updated_at", "z_int8"])
     end
 
-    it "orders serials along with int8" do
+    it "orders bigserials along with int8" do
       migration.create_table(:tests, :id => false) do |t|
-        t.bigserial :d_serial
+        t.bigserial :d_bigserial
+        t.integer :b_int8, :limit => 8, :null => false
+        t.bigserial :a_bigserial
+        t.integer :c_int8, :limit => 8, :null => false
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_bigserial", "b_int8", "c_int8", "d_bigserial"])
+    end
+
+    it "treats bigserial as not null" do
+      # Postgres automatically sets NOT NULL for bigserial,
+      # so even though it's not declared specifically in the
+      # migration, we have to be sure to infer that fact.
+      migration.create_table(:tests, :id => false) do |t|
+        t.bigserial :d_bigserial
         t.integer :b_int8, :limit => 8
-        t.bigserial :a_serial
+        t.bigserial :a_bigserial
         t.integer :c_int8, :limit => 8
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_serial", "b_int8", "c_int8", "d_serial"])
+      expect(ordered_columns).to eq(["a_bigserial", "d_bigserial", "b_int8", "c_int8"])
+
     end
 
     it "orders int4 after int8" do
@@ -253,14 +269,29 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
     it "orders serials along with int4" do
       migration.create_table(:tests, :id => false) do |t|
-        t.serial:d_serial, :limit => 4
+        t.serial :d_serial, :limit => 4
+        t.integer :b_int4, :limit => 4, :null => false
+        t.serial :a_serial, :limit => 4
+        t.integer :c_int4, :limit => 4, :null => false
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_serial", "b_int4", "c_int4", "d_serial"])
+    end
+
+    it "treats serials as not null" do
+      # Postgres automatically sets NOT NULL for serial,
+      # so even though it's not declared specifically in the
+      # migration, we have to be sure to infer that fact.
+      migration.create_table(:tests, :id => false) do |t|
+        t.serial :d_serial, :limit => 4
         t.integer :b_int4, :limit => 4
         t.serial :a_serial, :limit => 4
         t.integer :c_int4, :limit => 4
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_serial", "b_int4", "c_int4", "d_serial"])
+      expect(ordered_columns).to eq(["a_serial", "d_serial", "b_int4", "c_int4"])
     end
 
     it "orders text after int4" do

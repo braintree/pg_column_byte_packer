@@ -15,12 +15,18 @@ module PgColumnBytePacker
           :primary_key => col.primary_key?,
         )
 
+        nullable = if sql_type.match(/\A(big)?serial( primary key)?/)
+          col.null == true
+        else
+          col.null.nil? || col.null == true
+        end
+
         PgColumnBytePacker.ordering_key_for_column(
           connection: @conn,
           name: name,
           sql_type: sql_type,
           primary_key: col.options[:primary_key],
-          nullable: col.null.nil? || col.null == true,
+          nullable: nullable,
           has_default: !col.default.nil?
         )
       end
