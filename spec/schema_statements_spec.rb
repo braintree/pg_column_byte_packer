@@ -302,9 +302,9 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
     it "orders varchar with length > 127 along with int4" do
       migration.create_table(:tests, :id => false) do |t|
         t.integer :d_integer, :limit => 4
-        t.string :b_varchar, :limit => 255
+        t.string :b_varchar, :limit => 128
         t.integer :a_integer, :limit => 4
-        t.string :c_varchar, :limit => 255
+        t.string :c_varchar, :limit => 128
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
