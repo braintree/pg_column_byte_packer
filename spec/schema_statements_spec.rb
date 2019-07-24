@@ -233,10 +233,10 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
     it "orders decimals after int8" do
       migration.create_table(:tests, :id => false) do |t|
-        t.binary :a_decimal
+        t.decimal :a_decimal
         t.integer :b_int8, :limit => 8
         t.integer :c_int8, :limit => 8
-        t.binary :d_decimal
+        t.decimal :d_decimal
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
@@ -245,9 +245,9 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
     it "orders decimals along with int4" do
       migration.create_table(:tests, :id => false) do |t|
-        t.binary :d_decimal
+        t.decimal :d_decimal
         t.integer :b_int4, :limit => 4
-        t.binary :a_decimal
+        t.decimal :a_decimal
         t.integer :c_int4, :limit => 4
       end
 

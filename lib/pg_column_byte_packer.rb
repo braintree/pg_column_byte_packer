@@ -10,7 +10,7 @@ module PgColumnBytePacker
       case sql_type
       when "bigint", "timestamp", /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
-      when "integer", "date", /\Aserial( primary key)?/
+      when "integer", "date", "decimal", "float", /\Aserial( primary key)?/
         4 # Actual alignment for these types.
       when "bytea"
         # These types generally have an alignment of 4, but values of at most 127 bytes
