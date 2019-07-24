@@ -37,9 +37,10 @@ module PgColumnBytePacker
       when "smallint", "boolean"
         2 # Actual alignment for these types.
       else
-        if connection.select_value("SELECT typtype FROM pg_type WHERE typname = '#{sql_type}'") == "e"
+        typtype, typalign = connection.select_rows("SELECT typtype, typalign FROM pg_type WHERE typname = '#{connection.quote_string(sql_type)}'", "Type Lookup").first
+        if typtype == "e"
           4
-        elsif (typalign = connection.select_value("SELECT typalign FROM pg_type WHERE typname = '#{sql_type}'"))
+        else
           case typalign
           when "c"
             0
@@ -49,9 +50,9 @@ module PgColumnBytePacker
             4
           when "d"
             8
+          else
+            0
           end
-        else
-          0
         end
       end
 
