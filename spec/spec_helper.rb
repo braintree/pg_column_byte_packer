@@ -29,4 +29,10 @@ RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
+
+  config.before(:each) do
+    if PgColumnBytePacker.class_variables.include?(:@@sql_type_alignment_cache)
+      PgColumnBytePacker.remove_class_variable(:@@sql_type_alignment_cache)
+    end
+  end
 end
