@@ -10,7 +10,7 @@ module PgColumnBytePacker
       case sql_type
       when "bigint", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
-      when "integer", "date", "decimal", "float", /\Aserial( primary key)?/
+      when "integer", "date", "decimal", /\Aserial( primary key)?/
         4 # Actual alignment for these types.
       when "bytea"
         # These types generally have an alignment of 4, but values of at most 127 bytes
@@ -33,6 +33,20 @@ module PgColumnBytePacker
           else
             4
           end
+        end
+      when /\Afloat(\(\d+\))?/
+        precision_match = /\Afloat\((\d+)\)?/.match(sql_type)
+        if precision_match
+          # Precision here is a number of binary digits;
+          # see https://www.postgresql.org/docs/10/datatype-numeric.html
+          # for more information.
+          if precision_match[1].to_i >= 25
+            8 # Double precision
+          else
+            4 # Real
+          end
+        else
+          8 # Default is double precision
         end
       when "smallint", "boolean"
         2 # Actual alignment for these types.

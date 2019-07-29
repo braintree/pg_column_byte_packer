@@ -48,6 +48,23 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
     SQL
   end
 
+  def type_name_from_postgresql(table:, column:)
+    ActiveRecord::Base.value_from_sql <<-SQL
+      SELECT pg_catalog.format_type(atttypid, atttypmod)
+      FROM pg_attribute
+      WHERE attrelid = (
+        SELECT oid
+        FROM pg_class
+        WHERE pg_class.relname = '#{table}'
+          AND pg_class.relnamespace = (
+            SELECT pg_namespace.oid
+            FROM pg_namespace
+            WHERE pg_namespace.nspname = 'public'
+          )
+      ) AND attnum >= 0 AND attname = '#{column}'
+    SQL
+  end
+
   let(:migration_class) { ActiveRecord::Migration::Current }
 
   describe "#create_table" do
@@ -114,7 +131,21 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a_bigserial", "d_bigserial", "b_int8", "c_int8"])
+    end
 
+    it "orders float (double precision) along with int8" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.float :d_float
+        t.integer :b_int8, :limit => 8
+        t.float :a_float
+        t.integer :c_int8, :limit => 8
+      end
+
+      # Confirm our assumptions about what the migration is doing.
+      expect(type_name_from_postgresql(table: "tests", column: "d_float")).to eq("double precision")
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_float", "b_int8", "c_int8", "d_float"])
     end
 
     it "orders int4 after int8" do
@@ -153,6 +184,22 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_int8", "id", "a_int4", "z_int4"])
+    end
+
+    it "orders float properly when limit is specified" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.float :d_float8, :limit => 25
+        t.float :b_float8, :limit => 25
+        t.float :a_float4, :limit => 24
+        t.float :c_float4, :limit => 24
+      end
+
+      # Confirm our assumptions about what the migration is doing.
+      expect(type_name_from_postgresql(table: "tests", column: "d_float8")).to eq("double precision")
+      expect(type_name_from_postgresql(table: "tests", column: "a_float4")).to eq("real")
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_float8", "d_float8", "a_float4", "c_float4"])
     end
 
     it "orders enums along with int4" do
