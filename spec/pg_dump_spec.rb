@@ -598,5 +598,35 @@ RSpec.describe PgColumnBytePacker::PgDump do
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["my column"])
     end
+
+    it "puts constraints at the end of the statement" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          i integer,
+          CONSTRAINT tests_i_is_five CHECK (i = 5)
+        )
+      SQL
+
+      config = ActiveRecord::Base.connection.pool.spec.config
+      Tempfile.open("structure.sql") do |file|
+        `pg_dump --schema-only #{config[:database]} > #{file.path}`
+
+        # Behavior under test.
+        PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
+          file.path,
+          connection: ActiveRecord::Base.connection
+        )
+
+        expected_statement = <<~SQL
+        CREATE TABLE public.tests (
+            i integer,
+            CONSTRAINT tests_i_is_five CHECK ((i = 5))
+        );
+        SQL
+
+        contents = File.read(file.path)
+        expect(contents).to include(expected_statement)
+      end
+    end
   end
 end

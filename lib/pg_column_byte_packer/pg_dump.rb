@@ -66,41 +66,52 @@ module PgColumnBytePacker
         # query from the parse tree, and therein lies madness.
         line_without_comma = line[-1] == "," ? line[0..-2] : line
         fake_query = "CREATE TABLE t(#{line_without_comma});"
-        parsed = PgQuery.parse(fake_query)
-        column_def = parsed.tree[0]["RawStmt"]["stmt"]["CreateStmt"]["tableElts"][0]["ColumnDef"]
-        column = column_def["colname"]
+        parsed = begin
+           PgQuery.parse(fake_query)
+         rescue PgQuery::ParseError
+           nil
+         end
 
-        values = connection.select_rows(<<~SQL, "Column and Type Info").first
-          SELECT
-            pg_catalog.format_type(attr.atttypid, attr.atttypmod),
-            attr.attnotnull,
-            attr.atthasdef,
-            EXISTS (
-              SELECT 1
-              FROM pg_index idx
-              WHERE idx.indisprimary
-                AND attr.attnum = ANY(idx.indkey)
-                AND idx.indrelid = attr.attrelid
-            )
-          FROM pg_catalog.pg_attribute attr
-          JOIN pg_catalog.pg_type typ ON typ.oid = attr.atttypid
-          JOIN pg_catalog.pg_class cls ON cls.oid = attr.attrelid
-          JOIN pg_catalog.pg_namespace nsp ON nsp.oid = cls.relnamespace
-          WHERE attr.attname = '#{connection.quote_string(column)}'
-            AND nsp.nspname = '#{connection.quote_string(schema)}'
-            AND cls.relname = '#{connection.quote_string(table)}'
-            AND NOT attr.attisdropped
-        SQL
-        sql_type, not_null, has_default, primary_key = values
+        # Ignore CONSTRAINT definitions etc.
+        if parsed && (column_def = parsed.tree[0]["RawStmt"]["stmt"]["CreateStmt"]["tableElts"][0]["ColumnDef"])
+          column = column_def["colname"]
 
-        PgColumnBytePacker.ordering_key_for_column(
-          connection: connection,
-          name: column,
-          sql_type: sql_type,
-          primary_key: primary_key,
-          nullable: !not_null,
-          has_default: has_default
-        )
+          values = connection.select_rows(<<~SQL, "Column and Type Info").first
+            SELECT
+              pg_catalog.format_type(attr.atttypid, attr.atttypmod),
+              attr.attnotnull,
+              attr.atthasdef,
+              EXISTS (
+                SELECT 1
+                FROM pg_index idx
+                WHERE idx.indisprimary
+                  AND attr.attnum = ANY(idx.indkey)
+                  AND idx.indrelid = attr.attrelid
+              )
+            FROM pg_catalog.pg_attribute attr
+            JOIN pg_catalog.pg_type typ ON typ.oid = attr.atttypid
+            JOIN pg_catalog.pg_class cls ON cls.oid = attr.attrelid
+            JOIN pg_catalog.pg_namespace nsp ON nsp.oid = cls.relnamespace
+            WHERE attr.attname = '#{connection.quote_string(column)}'
+              AND nsp.nspname = '#{connection.quote_string(schema)}'
+              AND cls.relname = '#{connection.quote_string(table)}'
+              AND NOT attr.attisdropped
+          SQL
+          sql_type, not_null, has_default, primary_key = values
+
+          PgColumnBytePacker.ordering_key_for_column(
+            connection: connection,
+            name: column,
+            sql_type: sql_type,
+            primary_key: primary_key,
+            nullable: !not_null,
+            has_default: has_default
+          )
+        else
+          # All non-column lines we want to sort at the end
+          # of the table defintion statement.
+          [2**32]
+        end
       end
     end
   end
