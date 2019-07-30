@@ -45,4 +45,5 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "pg"
   spec.add_dependency "activerecord"
+  spec.add_dependency "pg_query"
 end

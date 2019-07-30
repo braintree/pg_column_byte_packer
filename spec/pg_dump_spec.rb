@@ -570,5 +570,33 @@ RSpec.describe PgColumnBytePacker::PgDump do
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a", "b", "c"])
     end
+
+    it "handles quoted column names (but without spaces)" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          -- Using a keyword will make pgdump have to quote
+          -- the identifier in its SQL output.
+          "limit" integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["limit"])
+    end
+
+    it "handles quoted column names (with spaces)" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          "my column" integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["my column"])
+    end
   end
 end

@@ -1,3 +1,5 @@
+require "pg_query"
+
 module PgColumnBytePacker
   module PgDump
     def self.sort_columns_for_definition_file(path, connection:)
@@ -53,7 +55,21 @@ module PgColumnBytePacker
       schema, table = qualified_table.match(/([^\.]+)\.([^\.]+)/)[1..-1]
 
       lines.sort_by do |line|
-        column = line.match(/\s*(\S+)/)[1]
+        line = line.chomp
+
+        # To handle the vagaries of quoted keywords as column names
+        # and spaces/special characters in column names, we resort
+        # to using PostgreSQL's parsing code itself on a faked
+        # CREATE TABLE call with a single column; we could parse
+        # the entire CREATE TABLE statement we have in the file,
+        # but then we'd have to figure out a way to recreate that
+        # query from the parse tree, and therein lies madness.
+        line_without_comma = line[-1] == "," ? line[0..-2] : line
+        fake_query = "CREATE TABLE t(#{line_without_comma});"
+        parsed = PgQuery.parse(fake_query)
+        column_def = parsed.tree[0]["RawStmt"]["stmt"]["CreateStmt"]["tableElts"][0]["ColumnDef"]
+        column = column_def["colname"]
+
         values = connection.select_rows(<<~SQL, "Column and Type Info").first
           SELECT
             pg_catalog.format_type(attr.atttypid, attr.atttypmod),
