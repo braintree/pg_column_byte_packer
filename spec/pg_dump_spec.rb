@@ -628,5 +628,34 @@ RSpec.describe PgColumnBytePacker::PgDump do
         expect(contents).to include(expected_statement)
       end
     end
+
+    it "properly handles table config modifiers" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          i integer
+        ) WITH (autovacuum_analyze_scale_factor='0.002');
+      SQL
+
+      config = ActiveRecord::Base.connection.pool.spec.config
+      Tempfile.open("structure.sql") do |file|
+        `pg_dump --schema-only #{config[:database]} > #{file.path}`
+
+        # Behavior under test.
+        PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
+          file.path,
+          connection: ActiveRecord::Base.connection
+        )
+
+        expected_statement = <<~SQL
+        CREATE TABLE public.tests (
+            i integer
+        )
+        WITH (autovacuum_analyze_scale_factor='0.002');
+        SQL
+
+        contents = File.read(file.path)
+        expect(contents).to include(expected_statement)
+      end
+    end
   end
 end

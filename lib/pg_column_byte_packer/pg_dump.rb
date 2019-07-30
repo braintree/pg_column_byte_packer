@@ -8,7 +8,7 @@ module PgColumnBytePacker
       current_block_body = []
       current_table_name = nil
       block_begin_prefix_pattern = /\ACREATE TABLE ([^\(]+) \(/
-      block_end_line = ");\n"
+      block_end_line_pattern = /\A\);?\n\Z/
 
       File.foreach(path) do |line|
         if current_block_start.nil? && (create_table_match = block_begin_prefix_pattern.match(line))
@@ -16,7 +16,7 @@ module PgColumnBytePacker
           current_block_body = []
           current_table_name = create_table_match[1]
         elsif current_block_start
-          if line == block_end_line
+          if line =~ block_end_line_pattern
             sorted_dump_output << current_block_start
             table_lines = _sort_table_lines(
               connection: connection,
