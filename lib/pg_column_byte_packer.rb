@@ -53,11 +53,14 @@ module PgColumnBytePacker
       # Sort out the alignment. Most of the type name matching is to
       # support the naming variants that ActiveRecord generates (often
       # they're aliases, like "integer", for which PostgreSQL internally
-      # has a different canonical name, like "int4").
+      # has a different canonical name, like "int4"). There are also
+      # a few cases we have to handle where the output from pgdump
+      # doesn't match the canonical name in pg_type; e.g., "float8" is
+      # canonical, but pgdump outputs "double precision".
       case bare_type
-      when "bigint", /\Atimestamp.*/, /\Abigserial( primary key)?/
+      when "bigint", "double precision", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
-      when "integer", "date", "decimal", /\Aserial( primary key)?/
+      when "integer", "date", "decimal", "real", /\Aserial( primary key)?/
         4 # Actual alignment for these types.
       when "bytea"
         # These types generally have an alignment of 4, but values of at most 127 bytes

@@ -172,6 +172,22 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_bigserial", "b_int8", "c_int8", "d_bigserial"])
     end
 
+    it "orders doubles along with int8" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_float8 double precision,
+          b_int8 bigint,
+          a_float8 double precision,
+          c_int8 bigint
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_float8", "b_int8", "c_int8", "d_float8"])
+    end
+
     it "orders int4 after int8" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
@@ -367,6 +383,22 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a_decimal", "b_int4", "c_int4", "d_decimal"])
+    end
+
+    it "orders reals along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_float4 real,
+          b_int4 integer,
+          a_float4 real,
+          c_int4 integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_float4", "b_int4", "c_int4", "d_float4"])
     end
 
     it "orders serials after int8" do
