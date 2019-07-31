@@ -123,6 +123,22 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_timestamp", "b_int8", "c_int8", "d_timestamp"])
     end
 
+    it "orders int8 arrays along with int8" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_int8arr bigint[],
+          b_int8 bigint,
+          a_int8arr bigint[][],
+          c_int8 bigint
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_int8arr", "b_int8", "c_int8", "d_int8arr"])
+    end
+
     it "orders an int8 primary key at the beginning of the 8-byte alignment group" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
@@ -204,6 +220,22 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_int8", "id", "a_int4", "z_int4"])
+    end
+
+    it "orders int4 arrays along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_int4arr integer[],
+          b_int4 int,
+          a_int4arr integer[][],
+          c_int4 int
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_int4arr", "b_int4", "c_int4", "d_int4arr"])
     end
 
     it "orders enums along with int4" do

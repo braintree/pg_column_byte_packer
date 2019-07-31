@@ -41,6 +41,19 @@ module PgColumnBytePacker
         sql_type
       end
 
+      # Ignore array designations. This seems like something we could
+      # so with the parsing above, and we could, and, in fact, that
+      # would also almost certain allow us to rip out most of the
+      # ActiveRecord generate alias type name matching below, but
+      # it would also mean a more thorough refactor below for types
+      # with size designations (e.g., when ActiveRecord generates
+      # "float(23)"). So we use this simple regex cleanup for now.
+      bare_type = bare_type.sub(/(\[\])+\Z/, "")
+
+      # Sort out the alignment. Most of the type name matching is to
+      # support the naming variants that ActiveRecord generates (often
+      # they're aliases, like "integer", for which PostgreSQL internally
+      # has a different canonical name, like "int4").
       case bare_type
       when "bigint", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
