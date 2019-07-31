@@ -373,8 +373,8 @@ RSpec.describe PgColumnBytePacker::PgDump do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
           a_serial serial,
-          b_int8 bigint,
-          c_int8 bigint,
+          b_int8 bigint not null,
+          c_int8 bigint not null,
           d_serial serial
         )
       SQL

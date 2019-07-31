@@ -305,8 +305,8 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
     it "orders serials after int8" do
       migration.create_table(:tests, :id => false) do |t|
         t.serial :a_serial, :limit => 4
-        t.integer :b_int8, :limit => 8
-        t.integer :c_int8, :limit => 8
+        t.integer :b_int8, :limit => 8, :null => false
+        t.integer :c_int8, :limit => 8, :null => false
         t.serial :d_serial, :limit => 4
       end
 
