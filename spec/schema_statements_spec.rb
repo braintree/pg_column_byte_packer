@@ -508,5 +508,25 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a", "b", "c"])
     end
+
+    it "handles columns with a types from a different schema" do
+      enum_type_name = random_word
+      migration.execute <<~SQL
+        CREATE SCHEMA "my schema";
+        CREATE SCHEMA myschema;
+        CREATE TYPE "my schema".#{enum_type_name} AS ENUM ();
+        CREATE TYPE myschema.#{enum_type_name} AS ENUM ();
+      SQL
+
+      migration.create_table(:tests, :id => false) do |t|
+        t.boolean :a_bool
+        t.column :b_enum, "myschema.#{enum_type_name}"
+        t.boolean :c_bool
+        t.column :d_enum, "\"my schema\".#{enum_type_name}"
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_enum", "d_enum", "a_bool", "c_bool"])
+    end
   end
 end

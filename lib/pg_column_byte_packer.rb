@@ -1,13 +1,47 @@
 require "pg_column_byte_packer/version"
+require "pg_query"
 
 module PgColumnBytePacker
   def self.sql_type_alignment_cache
     @@sql_type_alignment_cache ||= {}
   end
 
-  def self.ordering_key_for_column(connection:, name:, sql_type:, primary_key:, nullable:, has_default:)
-    alignment = PgColumnBytePacker.sql_type_alignment_cache[sql_type] ||=
-      case sql_type
+  def self.ordering_key_for_column(connection:, name:, sql_type:, type_schema: nil, primary_key:, nullable:, has_default:)
+    alignment = PgColumnBytePacker.sql_type_alignment_cache[sql_type] ||= (
+      if type_schema.nil?
+        fake_query = "CREATE TABLE t(c #{sql_type});"
+        parsed = begin
+           PgQuery.parse(fake_query)
+         rescue PgQuery::ParseError
+           nil
+         end
+
+        if parsed && (column_def = parsed.tree[0]["RawStmt"]["stmt"]["CreateStmt"]["tableElts"][0]["ColumnDef"])
+          type_identifiers = column_def["typeName"]["TypeName"]["names"].map { |s| s["String"]["str"] }
+          case type_identifiers.size
+          when 1
+            # Do nothing; we already have a bare type.
+          when 2
+            type_schema, bare_type = type_identifiers
+          else
+            raise ArgumentError, "Unexpected number of identifiers in type declaration for column: `#{name}`, identifiers: #{type_identifiers.inspect}"
+          end
+        end
+      end
+
+      bare_type = if type_schema
+        if sql_type.start_with?("#{type_schema}.")
+          sql_type.sub("#{type_schema}.", "")
+        elsif sql_type.start_with?("\"#{type_schema}\".")
+          sql_type.sub("\"#{type_schema}\".", "")
+        else
+          sql_type
+        end
+      else
+        sql_type
+      end
+
+      case bare_type
       when "bigint", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
       when "integer", "date", "decimal", /\Aserial( primary key)?/
@@ -51,7 +85,18 @@ module PgColumnBytePacker
       when "smallint", "boolean"
         2 # Actual alignment for these types.
       else
-        typtype, typalign = connection.select_rows("SELECT typtype, typalign FROM pg_type WHERE typname = '#{connection.quote_string(sql_type)}'", "Type Lookup").first
+        typtype, typalign = connection.select_rows(<<~SQL, "Type Lookup").first
+          SELECT typ.typtype, typ.typalign
+          FROM pg_type typ
+          JOIN pg_namespace nsp ON nsp.oid = typ.typnamespace
+          WHERE typname = '#{connection.quote_string(bare_type)}'
+            #{type_schema ? "AND nsp.nspname = '#{connection.quote_string(type_schema)}'" : ""}
+        SQL
+
+        if typtype.nil?
+          raise ArgumentError, "Got sql_type: `#{sql_type}` and type_schema: `#{type_schema}` but was unable to find entry in pg_type."
+        end
+
         if typtype == "e"
           4
         else
@@ -69,6 +114,7 @@ module PgColumnBytePacker
           end
         end
       end
+    )
 
     # Ordering components in order of most importance to least importance.
     [

@@ -1,5 +1,3 @@
-require "pg_query"
-
 module PgColumnBytePacker
   module PgDump
     def self.sort_columns_for_definition_file(path, connection:)
@@ -79,6 +77,7 @@ module PgColumnBytePacker
           values = connection.select_rows(<<~SQL, "Column and Type Info").first
             SELECT
               pg_catalog.format_type(attr.atttypid, attr.atttypmod),
+              typ_nsp.nspname,
               attr.attnotnull,
               attr.atthasdef,
               EXISTS (
@@ -91,18 +90,20 @@ module PgColumnBytePacker
             FROM pg_catalog.pg_attribute attr
             JOIN pg_catalog.pg_type typ ON typ.oid = attr.atttypid
             JOIN pg_catalog.pg_class cls ON cls.oid = attr.attrelid
-            JOIN pg_catalog.pg_namespace nsp ON nsp.oid = cls.relnamespace
+            JOIN pg_catalog.pg_namespace attr_nsp ON attr_nsp.oid = cls.relnamespace
+            JOIN pg_catalog.pg_namespace typ_nsp ON typ_nsp.oid = typ.typnamespace
             WHERE attr.attname = '#{connection.quote_string(column)}'
-              AND nsp.nspname = '#{connection.quote_string(schema)}'
+              AND attr_nsp.nspname = '#{connection.quote_string(schema)}'
               AND cls.relname = '#{connection.quote_string(table)}'
               AND NOT attr.attisdropped
           SQL
-          sql_type, not_null, has_default, primary_key = values
+          sql_type, type_schema, not_null, has_default, primary_key = values
 
           PgColumnBytePacker.ordering_key_for_column(
             connection: connection,
             name: column,
             sql_type: sql_type,
+            type_schema: type_schema,
             primary_key: primary_key,
             nullable: !not_null,
             has_default: has_default

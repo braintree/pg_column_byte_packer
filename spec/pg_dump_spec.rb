@@ -63,12 +63,34 @@ RSpec.describe PgColumnBytePacker::PgDump do
       ActiveRecord::Base.connection.tables.each do |table|
         ActiveRecord::Base.connection.execute("DROP TABLE #{table}")
       end
-      ActiveRecord::Base.connection.select_values("SELECT typname FROM pg_type WHERE typtype = 'e'").each do |enum_type|
-        ActiveRecord::Base.connection.execute("DROP TYPE #{enum_type}")
+      enum_types = ActiveRecord::Base.connection.select_rows <<~SQL
+        SELECT nsp.nspname, typ.typname
+        FROM pg_type typ
+        JOIN pg_namespace nsp ON nsp.oid = typ.typnamespace
+        WHERE typtype = 'e'
+      SQL
+      enum_types.each do |schema, type|
+        conn = ActiveRecord::Base.connection
+        conn.execute("DROP TYPE \"#{conn.quote_string(schema)}\".#{type}")
       end
 
       # Restore.
       `psql -f #{file.path} #{config[:database]}`
+    end
+  end
+
+  def dump_table_definitions_reordered
+    config = ActiveRecord::Base.connection.pool.spec.config
+    Tempfile.open("structure.sql") do |file|
+      `pg_dump --schema-only #{config[:database]} > #{file.path}`
+
+      # Behavior under test.
+      PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
+        file.path,
+        connection: ActiveRecord::Base.connection
+      )
+
+      File.read(file.path)
     end
   end
 
@@ -607,26 +629,16 @@ RSpec.describe PgColumnBytePacker::PgDump do
         )
       SQL
 
-      config = ActiveRecord::Base.connection.pool.spec.config
-      Tempfile.open("structure.sql") do |file|
-        `pg_dump --schema-only #{config[:database]} > #{file.path}`
+      contents = dump_table_definitions_reordered()
 
-        # Behavior under test.
-        PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
-          file.path,
-          connection: ActiveRecord::Base.connection
-        )
+      expected_statement = <<~SQL
+      CREATE TABLE public.tests (
+          i integer,
+          CONSTRAINT tests_i_is_five CHECK ((i = 5))
+      );
+      SQL
 
-        expected_statement = <<~SQL
-        CREATE TABLE public.tests (
-            i integer,
-            CONSTRAINT tests_i_is_five CHECK ((i = 5))
-        );
-        SQL
-
-        contents = File.read(file.path)
-        expect(contents).to include(expected_statement)
-      end
+      expect(contents).to include(expected_statement)
     end
 
     it "properly handles table config modifiers" do
@@ -636,26 +648,37 @@ RSpec.describe PgColumnBytePacker::PgDump do
         ) WITH (autovacuum_analyze_scale_factor='0.002');
       SQL
 
-      config = ActiveRecord::Base.connection.pool.spec.config
-      Tempfile.open("structure.sql") do |file|
-        `pg_dump --schema-only #{config[:database]} > #{file.path}`
+      contents = dump_table_definitions_reordered()
 
-        # Behavior under test.
-        PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
-          file.path,
-          connection: ActiveRecord::Base.connection
+      expected_statement = <<~SQL
+      CREATE TABLE public.tests (
+          i integer
+      )
+      WITH (autovacuum_analyze_scale_factor='0.002');
+      SQL
+
+      expect(contents).to include(expected_statement)
+    end
+
+    it "handles columns with a types from a different schema" do
+      enum_type_name = random_word
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE SCHEMA "my schema";
+        CREATE SCHEMA myschema;
+        CREATE TYPE "my schema".#{enum_type_name} AS ENUM ();
+        CREATE TYPE myschema.#{enum_type_name} AS ENUM ();
+        CREATE TABLE tests (
+          a_bool boolean,
+          b_enum myschema.#{enum_type_name},
+          c_bool boolean,
+          d_enum "my schema".#{enum_type_name}
         )
+      SQL
 
-        expected_statement = <<~SQL
-        CREATE TABLE public.tests (
-            i integer
-        )
-        WITH (autovacuum_analyze_scale_factor='0.002');
-        SQL
+      dump_table_definitions_and_restore_reordered()
 
-        contents = File.read(file.path)
-        expect(contents).to include(expected_statement)
-      end
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_enum", "d_enum", "a_bool", "c_bool"])
     end
   end
 end
