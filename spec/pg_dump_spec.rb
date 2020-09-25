@@ -1,57 +1,26 @@
+require "open3"
+
 RSpec.describe PgColumnBytePacker::PgDump do
-  def with_connection(config, &block)
-    ActiveRecord::Base.establish_connection(config)
-    begin
-      block.call
-    ensure
-      ActiveRecord::Base.connection.pool.disconnect!
-    end
+  def run_shell_command(command, env:)
+    stdout, stderr, command_status = Open3.capture3(env, command)
+
+    raise RuntimeError, "Command failed: `#{command}` (status: #{command_status})\nstdout `#{stdout}`\nstderr: `#{stderr}`" unless command_status.exitstatus.zero?
   end
 
-  def run_on_fresh_database(&block)
-    config = ActiveRecord::Base.configurations["postgresql"]
-
-    config = config.merge(
-      "database" => "#{config["database"]}_#{Process.pid}",
-    )
-
-    begin
-      with_connection(config.merge("database" => "postgres")) do
-        ActiveRecord::Base.connection.create_database(config["database"], config)
-      end
-
-      with_connection(config) do
-        block.call
-      end
-    ensure
-      with_connection(config.merge("database" => "postgres")) do
-        ActiveRecord::Base.connection.drop_database(config["database"])
-      end
-    end
-  end
-
-  def column_order_from_postgresql(table:)
-    ActiveRecord::Base.pluck_from_sql <<-SQL
-      SELECT attname
-      FROM pg_attribute
-      WHERE attrelid = (
-        SELECT oid
-        FROM pg_class
-        WHERE pg_class.relname = '#{table}'
-          AND pg_class.relnamespace = (
-            SELECT pg_namespace.oid
-            FROM pg_namespace
-            WHERE pg_namespace.nspname = 'public'
-          )
-      ) AND attnum >= 0
-      ORDER BY attnum
-    SQL
+  def pg_dump_env_vars
+    config = ActiveRecord::Base.configurations["test"]
+    {
+      "PGHOST" => config["host"],
+      "PGPORT" => config["port"],
+      "PGUSER" => config["username"],
+      "PGPASSWORD" => config["password"],
+    }
   end
 
   def dump_table_definitions_and_restore_reordered
     config = ActiveRecord::Base.connection.pool.spec.config
     Tempfile.open("structure.sql") do |file|
-      `pg_dump --schema-only #{config[:database]} > #{file.path}`
+      run_shell_command("pg_dump --schema-only #{config[:database]} > #{file.path}", env: pg_dump_env_vars)
 
       # Behavior under test.
       PgColumnBytePacker::PgDump.sort_columns_for_definition_file(
@@ -75,14 +44,14 @@ RSpec.describe PgColumnBytePacker::PgDump do
       end
 
       # Restore.
-      `psql -f #{file.path} #{config[:database]}`
+      run_shell_command("psql -f #{file.path} #{config[:database]}", env: pg_dump_env_vars)
     end
   end
 
   def dump_table_definitions_reordered
     config = ActiveRecord::Base.connection.pool.spec.config
     Tempfile.open("structure.sql") do |file|
-      `pg_dump --schema-only #{config[:database]} > #{file.path}`
+      run_shell_command("pg_dump --schema-only #{config[:database]} > #{file.path}", env: pg_dump_env_vars)
 
       # Behavior under test.
       PgColumnBytePacker::PgDump.sort_columns_for_definition_file(

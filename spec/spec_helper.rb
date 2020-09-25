@@ -4,16 +4,17 @@ require "relation_to_struct"
 require "db-query-matchers"
 require "tempfile"
 require "pry"
+require_relative "postgresql_spec_helpers"
 
 ActiveRecord::Base.configurations = {
-  "postgresql" => {
-    "adapter" => 'postgresql',
-    "host" => ENV["PGHOST"] || 'localhost',
-    "port" => ENV["PGPORT"] || '5432',
-    "database" => 'pg_column_byte_packer_tests',
-    "encoding" => 'utf8',
-    "username" => ENV["PGUSER"] || `whoami`.strip,
-    "password" => ENV["PGPASSWORD"],
+  "test" => {
+    "adapter" => "postgresql",
+    "host" => ENV["PGHOST"] || "localhost",
+    "port" => ENV["PGPORT"] || "5432",
+    "database" => "pg_column_byte_packer_tests",
+    "encoding" => "utf8",
+    "username" => ENV["PGUSER"] || "postgres",
+    "password" => ENV["PGPASSWORD"] || "postgres",
     "prepared_statements" => false,
   },
 }
@@ -36,4 +37,6 @@ RSpec.configure do |config|
       PgColumnBytePacker.remove_class_variable(:@@sql_type_alignment_cache)
     end
   end
+
+  config.include(PostgresqlSpecHelpers)
 end
