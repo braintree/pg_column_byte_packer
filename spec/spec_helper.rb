@@ -2,7 +2,8 @@ require "bundler/setup"
 require "pg_column_byte_packer"
 require "relation_to_struct"
 require "db-query-matchers"
-require 'tempfile'
+require "tempfile"
+require "pry"
 
 ActiveRecord::Base.configurations = {
   "postgresql" => {
