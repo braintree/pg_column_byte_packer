@@ -31,6 +31,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pry-byebug"
 
   spec.add_dependency "pg"
-  spec.add_dependency "activerecord"
+  spec.add_dependency "activerecord", ">= 5.1", "< 6.1"
   spec.add_dependency "pg_query"
 end
