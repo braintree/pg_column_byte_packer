@@ -3,6 +3,8 @@ language: ruby
 rvm:
   - 2.5
 env:
+  global:
+    - PGPORT: "5433"
   jobs:
     - PGVERSION: "9.6"
     - PGVERSION: "10"
@@ -11,9 +13,9 @@ env:
 services:
   - postgresql
 before_install:
-  - "for CLUSTER_VERSION in $(pg_lsclusters -h | cut -d' ' -f1); do sudo pg_dropcluster $CLUSTER_VERSION main --stop || true; done"
+  - "for CLUSTER_VERSION in $(pg_lsclusters -h | cut -d' ' -f1); do sudo pg_dropcluster $CLUSTER_VERSION main --stop || true; sudo apt-get remove postgresql-client-$CLUSTER_VERSION postgresql-client-common || true; done"
   - sudo apt-get update
-  - sudo apt-get -y install postgresql-$PGVERSION postgresql-client-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-client-common postgresql-common
+  - sudo apt-get -y install postgresql-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-contrib-$PGVERSION postgresql-client-$PGVERSION postgresql-client-common
   - sudo pg_dropcluster $PGVERSION main --stop || true
   - sudo pg_createcluster $PGVERSION main -D /var/ramfs/postgresql/11/main -- --auth=trust
   - sudo pg_ctlcluster start $PGVERSION main
