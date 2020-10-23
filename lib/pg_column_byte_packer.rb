@@ -89,9 +89,9 @@ module PgColumnBytePacker
       # doesn't match the canonical name in pg_type; e.g., "float8" is
       # canonical, but pgdump outputs "double precision".
       case bare_type
-      when "bigint", "double precision", /\Atimestamp.*/, /\Abigserial( primary key)?/
+      when "bigint", "double precision", /\Atimestamp(tz| with time zone| without time zone)?/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
-      when "integer", "date", /\Adecimal(\([^\)]+\))?/, "real", /\Aserial( primary key)?/
+      when "integer", "date", /\Atime(tz| with time zone| without time zone)?/, /\Adecimal(\([^\)]+\))?/, "real", /\Aserial( primary key)?/
         # Note: unlike the others which always take a fixed amount of space,
         # the numeric/decimal type is stored in a variable amount of space (see:
         # https://www.postgresql.org/docs/10/datatype-numeric.html) but pg_type

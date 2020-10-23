@@ -290,6 +290,54 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_date", "b_int4", "c_int4", "d_date"])
     end
 
+    it "orders time after int8" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_time time,
+          b_int8 bigint,
+          c_int8 bigint,
+          d_time time
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int8", "c_int8", "a_time", "d_time"])
+    end
+
+    it "orders time along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_time time,
+          b_int4 integer,
+          a_time time,
+          c_int4 integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_time", "b_int4", "c_int4", "d_time"])
+    end
+
+    it "orders timetz along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_time timetz,
+          b_int4 integer,
+          a_time timetz,
+          c_int4 integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_time", "b_int4", "c_int4", "d_time"])
+    end
+
     it "orders byteas after int8" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
