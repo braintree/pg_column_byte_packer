@@ -188,6 +188,30 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["a_date", "b_int4", "c_int4", "d_date"])
     end
 
+    it "orders time after int8" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.time :a_time
+        t.integer :b_int8, :limit => 8
+        t.integer :c_int8, :limit => 8
+        t.time :d_time
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int8", "c_int8", "a_time", "d_time"])
+    end
+
+    it "orders time along with int4" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.time :d_time
+        t.integer :b_int4, :limit => 4
+        t.time :a_time
+        t.integer :c_int4, :limit => 4
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_time", "b_int4", "c_int4", "d_time"])
+    end
+
     it "orders byteas after int8" do
       migration.create_table(:tests, :id => false) do |t|
         t.binary :a_bytea
