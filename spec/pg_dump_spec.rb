@@ -564,6 +564,86 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_text", "b_varchar", "c_varchar", "d_text"])
     end
 
+    it "orders varbit with length > (8 * 127) along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_integer integer,
+          b_varbit varbit(#{8 * 127 + 1}),
+          a_integer integer,
+          c_varbit varbit(#{8 * 127 + 1})
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_integer", "b_varbit", "c_varbit", "d_integer"])
+    end
+
+    it "orders varbit with length <= (8 * 127) after int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_varbit varbit(#{8 * 127}),
+          b_int4 integer,
+          c_int4 integer,
+          d_varbit varbit(#{8 * 127})
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varbit", "d_varbit"])
+    end
+
+    it "orders varbit with indeterminate length after int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_varbit varbit,
+          b_int4 integer,
+          c_int4 integer,
+          d_varbit varbit
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varbit", "d_varbit"])
+    end
+
+    it "orders text along with varbit with indeterminate length" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_text text,
+          b_varbit varbit,
+          a_text text,
+          c_varbit varbit
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_text", "b_varbit", "c_varbit", "d_text"])
+    end
+
+    it "orders \"bit\" along with varbit with indeterminate length" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_bit "bit",
+          b_varbit varbit,
+          a_bit "bit",
+          c_varbit varbit
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_bit", "b_varbit", "c_varbit", "d_bit"])
+    end
+
     it "orders smallint after text" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
@@ -610,6 +690,54 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["a_boolean", "b_smallint", "c_smallint", "d_boolean"])
+    end
+
+    it "orders char after smallint" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_char character,
+          b_smallint smallint,
+          c_smallint smallint,
+          d_char character
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_smallint", "c_smallint", "a_char", "d_char"])
+    end
+
+    it "orders char(n) with char" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_char char(1),
+          b_char char,
+          a_char char(130),
+          c_char char
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_char", "b_char", "c_char", "d_char"])
+    end
+
+    it "orders \"char\" with char" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_char "char",
+          b_char char,
+          a_char "char",
+          c_char char
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_char", "b_char", "c_char", "d_char"])
     end
 
     it "orders by name for multiple fields of the same type" do
