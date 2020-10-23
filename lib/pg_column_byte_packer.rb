@@ -60,7 +60,14 @@ module PgColumnBytePacker
       case bare_type
       when "bigint", "double precision", /\Atimestamp.*/, /\Abigserial( primary key)?/
         8 # Actual alignment for these types.
-      when "integer", "date", "decimal", "real", /\Aserial( primary key)?/
+      when "integer", "date", /\Adecimal(\([^\)]+\))?/, "real", /\Aserial( primary key)?/
+        # Note: unlike the others which always take a fixed amount of space,
+        # the numeric/decimal type is stored in a variable amount of space (see:
+        # https://www.postgresql.org/docs/10/datatype-numeric.html) but pg_type
+        # shows that its alignment is the same as integer. Postgres canonicalizes
+        # this type to numeric, but we have to still support the decimal
+        # designation for ActiveRecord inputs.
+
         4 # Actual alignment for these types.
       when "bytea"
         # These types generally have an alignment of 4, but values of at most 127 bytes
@@ -101,11 +108,12 @@ module PgColumnBytePacker
       when "smallint", "boolean"
         2 # Actual alignment for these types.
       else
+        type_without_modifier, modifier = bare_type.match(/\A([^\(]+)(\([^\)]+\))?/)[1..-1]
         typtype, typalign = connection.select_rows(<<~SQL, "Type Lookup").first
           SELECT typ.typtype, typ.typalign
           FROM pg_type typ
           JOIN pg_namespace nsp ON nsp.oid = typ.typnamespace
-          WHERE typname = '#{connection.quote_string(bare_type)}'
+          WHERE typname = '#{connection.quote_string(type_without_modifier)}'
             #{type_schema ? "AND nsp.nspname = '#{connection.quote_string(type_schema)}'" : ""}
         SQL
 

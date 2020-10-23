@@ -354,6 +354,56 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_decimal", "b_int4", "c_int4", "d_decimal"])
     end
 
+    # Both `numeric` and `decimal` are the same type in Postgres; see:
+    # https://www.postgresql.org/message-id/20211.1325269672@sss.pgh.pa.us
+    it "orders numeric after int8" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_numeric numeric,
+          b_int8 bigint,
+          c_int8 bigint,
+          d_numeric numeric
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int8", "c_int8", "a_numeric", "d_numeric"])
+    end
+
+    it "orders numeric along with int4" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_numeric numeric,
+          b_int4 integer,
+          a_numeric numeric,
+          c_int4 integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
+    it "supports numeric with a modifier" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_numeric numeric(1),
+          b_int4 integer,
+          a_numeric numeric(1),
+          c_int4 integer
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
     it "orders reals along with int4" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
