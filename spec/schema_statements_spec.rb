@@ -236,6 +236,89 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["a_decimal", "b_int4", "c_int4", "d_decimal"])
     end
 
+    # Both `numeric` and `decimal` are the same type in Postgres; see:
+    # https://www.postgresql.org/message-id/20211.1325269672@sss.pgh.pa.us
+    it "orders numeric after int8" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.numeric :a_numeric
+        t.integer :b_int8, :limit => 8
+        t.integer :c_int8, :limit => 8
+        t.numeric :d_numeric
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int8", "c_int8", "a_numeric", "d_numeric"])
+    end
+
+    it "orders numeric along with int4" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.numeric :d_numeric
+        t.integer :b_int4, :limit => 4
+        t.numeric :a_numeric
+        t.integer :c_int4, :limit => 4
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
+    it "supports numeric with a modifier" do
+      expect do
+        migration.create_table(:tests, :id => false) do |t|
+          t.numeric :d_numeric, :precision => 1
+          t.integer :b_int4, :limit => 4
+          t.numeric :a_numeric, :precision => 1
+          t.integer :c_int4, :limit => 4
+        end
+        # ActiveRecord will generate the type `decimal(1)`, but Postgres
+        # will canonicalize it.
+      end.to make_database_queries(matching: /decimal\(1\)/, count: 1)
+
+      # Confirm our assumptions about what the migration is doing.
+      expect(type_name_from_postgresql(table: "tests", column: "d_numeric")).to eq("numeric(1,0)")
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
+    it "supports 'raw' numeric" do
+      expect do
+        migration.create_table(:tests, :id => false) do |t|
+          t.column :d_numeric, :numeric
+          t.integer :b_int4, :limit => 4
+          t.column :a_numeric, :numeric
+          t.integer :c_int4, :limit => 4
+        end
+        # This time we're controlling the type name in the SQL
+        # directly than relying on ActiveRecord's internal naming.
+      end.to make_database_queries(matching: /"d_numeric" numeric/, count: 1)
+
+      # Confirm our assumptions about what the migration is doing.
+      expect(type_name_from_postgresql(table: "tests", column: "d_numeric")).to eq("numeric")
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
+    it "supports 'raw' numeric with a modifier" do
+      expect do
+        migration.create_table(:tests, :id => false) do |t|
+          t.column :d_numeric, "numeric(1, 0)"
+          t.integer :b_int4, :limit => 4
+          t.column :a_numeric, "numeric(1, 0)"
+          t.integer :c_int4, :limit => 4
+        end
+        # This time we're controlling the type name in the SQL
+        # directly than relying on ActiveRecord's internal naming.
+      end.to make_database_queries(matching: /"d_numeric" numeric\(1, 0\)/, count: 1)
+
+      # Confirm our assumptions about what the migration is doing.
+      expect(type_name_from_postgresql(table: "tests", column: "d_numeric")).to eq("numeric(1,0)")
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_numeric", "b_int4", "c_int4", "d_numeric"])
+    end
+
     it "orders serials after int8" do
       migration.create_table(:tests, :id => false) do |t|
         t.serial :a_serial, :limit => 4
