@@ -107,27 +107,45 @@ module PgColumnBytePacker
         # won't fit into the optimized case.
         4
       when "text", "citext", "character varying", "bit varying", "bit"
-        # These types generally have an alignment of 4, but values of at most 127 bytes
-        # long they are optimized into 2 byte alignment.
-        # Since we don't have a good heuristic for determining which columns are likely
-        # to be long or short, we currently just slot them all after the columns we
-        # believe will always be long.
-        # If desired we could also differentiate on length limits if set.
+        # These types generally have an alignment of 4 (as designated by pg_type
+        # having a typalign value of 'i', but they're special in that small values
+        # have an optimized storage layout. Beyond the optimized storage layout, though,
+        # these small values also are not required to respect the alignment the type
+        # would otherwise have. Specifically, values with a size of at most 127 bytes
+        # aren't aligned. That 127 byte cap, however, includes an overhead byte to store
+        # the length, and so in reality the max is 126 bytes. Interestingly TOASTable
+        # values are also treated that way, but we don't have a good way of knowing which
+        # values those will be.
+        #
+        # See: `fill_val()` in src/backend/access/common/heaptuple.c (in the conditional
+        # `else if (att->attlen == -1)` branch.
+        #
+        # When no limit modifier has been applied we don't have a good heuristic for
+        # determining which columns are likely to be long or short, so we currently
+        # just slot them all after the columns we believe will always be long.
         3
       when /\Acharacter varying\(\d+\)/
+        # However, when a limit modifier has been applied we can make stronger assumptions.
         if (limit = /\Acharacter varying\((\d+)\)/.match(sql_type)[1])
-          if limit.to_i <= 127
-            2
+          if limit.to_i <= 126
+            # If we know the limit guarantees we'll fit into the unaligned storage
+            # optimization, then we can go ahead and treat it as unaligned.
+            1
           else
-            4
+            # If the limit would allow strings that require alignment, then we assume it's
+            # more likely to exeed the optimization cap and slot them after the columns
+            # we know for certain will require integer alignment.
+            3
           end
         end
       when /\Abit varying\(\d+\)/
+        # This type is functionally the same as varchar above, but the calculation we need
+        # to do has been scaled since the limit is expressed in bits rather than bytes.
         if (limit = /\Abit varying\((\d+)\)/.match(sql_type)[1])
-          if limit.to_i <= (127 * 8)
-            2
+          if limit.to_i <= (126 * 8)
+            1
           else
-            4
+            3
           end
         end
       when /\Afloat(\(\d+\))?/
@@ -183,7 +201,7 @@ module PgColumnBytePacker
             # Character types, for example, occupy a variable amount of space
             # (though fixed in the sense that it's specified up front for each
             # column definition) but require no alignment.
-            0
+            1
           when "s"
             2
           when "i"
@@ -191,7 +209,7 @@ module PgColumnBytePacker
           when "d"
             8
           else
-            0
+            1
           end
         end
       end
