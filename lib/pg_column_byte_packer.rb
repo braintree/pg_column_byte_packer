@@ -144,12 +144,14 @@ module PgColumnBytePacker
         else
           8 # Default is double precision
         end
-      when "smallint", "boolean"
-        2 # Actual alignment for these types.
       else
         type_without_modifier, modifier = bare_type.match(/\A([^\(]+)(\([^\)]+\))?/)[1..-1]
 
         pg_type_typname = case type_without_modifier
+        when "boolean"
+          "bool"
+        when "smallint"
+          "int2"
         when "character"
           "char"
         else

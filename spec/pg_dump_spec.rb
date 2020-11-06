@@ -708,12 +708,12 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["b_text", "c_text", "a_smallint", "d_smallint"])
     end
 
-    it "orders boolean after text" do
+    it "orders boolean after smallint" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
           a_boolean boolean,
-          b_text text,
-          c_text text,
+          b_int smallint,
+          c_int smallint,
           d_boolean boolean
         )
       SQL
@@ -721,23 +721,7 @@ RSpec.describe PgColumnBytePacker::PgDump do
       dump_table_definitions_and_restore_reordered()
 
       ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["b_text", "c_text", "a_boolean", "d_boolean"])
-    end
-
-    it "orders boolean along with smallint" do
-      ActiveRecord::Base.connection.execute <<~SQL
-        CREATE TABLE tests (
-          d_boolean boolean,
-          b_smallint smallint,
-          a_boolean boolean,
-          c_smallint smallint
-        )
-      SQL
-
-      dump_table_definitions_and_restore_reordered()
-
-      ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_boolean", "b_smallint", "c_smallint", "d_boolean"])
+      expect(ordered_columns).to eq(["b_int", "c_int", "a_boolean", "d_boolean"])
     end
 
     it "orders char after smallint" do
@@ -754,6 +738,22 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_smallint", "c_smallint", "a_char", "d_char"])
+    end
+
+    it "orders char along with bool" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_boolean bool,
+          b_char char,
+          a_boolean bool,
+          c_char char
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_boolean", "b_char", "c_char", "d_boolean"])
     end
 
     it "orders char(n) with char" do

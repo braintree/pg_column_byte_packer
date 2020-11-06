@@ -478,28 +478,16 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["b_text", "c_text", "a_smallint", "d_smallint"])
     end
 
-    it "orders boolean after text" do
+    it "orders boolean after smallint" do
       migration.create_table(:tests, :id => false) do |t|
         t.boolean :a_boolean
-        t.text :b_text
-        t.text :c_text
+        t.integer :b_int, :limit => 2
+        t.integer :c_int, :limit => 2
         t.boolean :d_boolean
       end
 
       ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["b_text", "c_text", "a_boolean", "d_boolean"])
-    end
-
-    it "orders boolean along with smallint" do
-      migration.create_table(:tests, :id => false) do |t|
-        t.boolean :d_boolean
-        t.integer :b_smallint, :limit => 2
-        t.boolean :a_boolean
-        t.integer :c_smallint, :limit => 2
-      end
-
-      ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_boolean", "b_smallint", "c_smallint", "d_boolean"])
+      expect(ordered_columns).to eq(["b_int", "c_int", "a_boolean", "d_boolean"])
     end
 
     it "orders by name for multiple fields of the same type" do
