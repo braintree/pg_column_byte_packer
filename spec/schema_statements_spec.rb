@@ -418,19 +418,7 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["a_text", "b_citext", "c_citext", "d_text"])
     end
 
-    it "orders varchar with length > 127 along with int4" do
-      migration.create_table(:tests, :id => false) do |t|
-        t.integer :d_integer, :limit => 4
-        t.string :b_varchar, :limit => 128
-        t.integer :a_integer, :limit => 4
-        t.string :c_varchar, :limit => 128
-      end
-
-      ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_integer", "b_varchar", "c_varchar", "d_integer"])
-    end
-
-    it "orders varchar with length <= 127 after int4" do
+    it "orders varchar with length > 126 after int4" do
       migration.create_table(:tests, :id => false) do |t|
         t.string :a_varchar, :limit => 127
         t.integer :b_int4, :limit => 4
@@ -440,6 +428,42 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varchar", "d_varchar"])
+    end
+
+    it "orders varchar with length > 126 along with text" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.text :d_text
+        t.string :b_varchar, :limit => 127
+        t.text :a_text
+        t.string :c_varchar, :limit => 127
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_text", "b_varchar", "c_varchar", "d_text"])
+    end
+
+    it "orders varchar with length <= 126 after smallint" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.string :a_varchar, :limit => 126
+        t.integer :b_int2, :limit => 2
+        t.integer :c_int2, :limit => 2
+        t.string :d_varchar, :limit => 126
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int2", "c_int2", "a_varchar", "d_varchar"])
+    end
+
+    it "orders varchar with length <= 126 along with boolean" do
+      migration.create_table(:tests, :id => false) do |t|
+        t.boolean :d_boolean
+        t.string :b_varchar, :limit => 126
+        t.boolean :a_boolean
+        t.string :c_varchar, :limit => 126
+      end
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_boolean", "b_varchar", "c_varchar", "d_boolean"])
     end
 
     it "orders varchar with indeterminate length after int4" do
@@ -454,7 +478,7 @@ RSpec.describe PgColumnBytePacker::SchemaCreation do
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varchar", "d_varchar"])
     end
 
-    it "orders text along with varchar with indeterminate length" do
+    it "orders varchar with indeterminate length along with text" do
       migration.create_table(:tests, :id => false) do |t|
         t.text :d_text
         t.string :b_varchar

@@ -548,28 +548,12 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_text", "b_citext", "c_citext", "d_text"])
     end
 
-    it "orders varchar with length > 127 along with int4" do
-      ActiveRecord::Base.connection.execute <<~SQL
-        CREATE TABLE tests (
-          d_integer integer,
-          b_varchar varchar(128),
-          a_integer integer,
-          c_varchar varchar(128)
-        )
-      SQL
-
-      dump_table_definitions_and_restore_reordered()
-
-      ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_integer", "b_varchar", "c_varchar", "d_integer"])
-    end
-
-    it "orders varchar with length <= 127 after int4" do
+    it "orders varchar with length > 126 after int4" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
           a_varchar varchar(127),
-          b_int4 integer,
-          c_int4 integer,
+          b_int4 int4,
+          c_int4 int4,
           d_varchar varchar(127)
         )
       SQL
@@ -578,6 +562,38 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varchar", "d_varchar"])
+    end
+
+    it "orders varchar with length <= 126 after int2" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_varchar varchar(126),
+          b_int2 int2,
+          c_int2 int2,
+          d_varchar varchar(126)
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int2", "c_int2", "a_varchar", "d_varchar"])
+    end
+
+    it "orders varchar with length <= 126 along with boolean" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_bool bool,
+          b_varchar varchar(126),
+          a_bool bool,
+          c_varchar varchar(126)
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_bool", "b_varchar", "c_varchar", "d_bool"])
     end
 
     it "orders varchar with indeterminate length after int4" do
@@ -596,7 +612,7 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varchar", "d_varchar"])
     end
 
-    it "orders text along with varchar with indeterminate length" do
+    it "orders varchar with indeterminate length along with text" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
           d_text text,
@@ -612,29 +628,13 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["a_text", "b_varchar", "c_varchar", "d_text"])
     end
 
-    it "orders varbit with length > (8 * 127) along with int4" do
+    it "orders varbit with length > (8 * 126) after int4" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
-          d_integer integer,
-          b_varbit varbit(#{8 * 127 + 1}),
-          a_integer integer,
-          c_varbit varbit(#{8 * 127 + 1})
-        )
-      SQL
-
-      dump_table_definitions_and_restore_reordered()
-
-      ordered_columns = column_order_from_postgresql(table: "tests")
-      expect(ordered_columns).to eq(["a_integer", "b_varbit", "c_varbit", "d_integer"])
-    end
-
-    it "orders varbit with length <= (8 * 127) after int4" do
-      ActiveRecord::Base.connection.execute <<~SQL
-        CREATE TABLE tests (
-          a_varbit varbit(#{8 * 127}),
-          b_int4 integer,
-          c_int4 integer,
-          d_varbit varbit(#{8 * 127})
+          a_varbit varbit(#{8 * 126 + 1}),
+          b_int4 int4,
+          c_int4 int4,
+          d_varbit varbit(#{8 * 126 + 1})
         )
       SQL
 
@@ -642,6 +642,54 @@ RSpec.describe PgColumnBytePacker::PgDump do
 
       ordered_columns = column_order_from_postgresql(table: "tests")
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varbit", "d_varbit"])
+    end
+
+    it "orders varbit with length > (8 * 126) along with text" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_text text,
+          b_varbit varbit(#{8 * 126 + 1}),
+          a_text text,
+          c_varbit varbit(#{8 * 126 + 1})
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_text", "b_varbit", "c_varbit", "d_text"])
+    end
+
+    it "orders varbit with length <= (8 * 126) after int2" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          a_varbit varbit(#{8 * 126}),
+          b_int2 int2,
+          c_int2 int2,
+          d_varbit varbit(#{8 * 126})
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["b_int2", "c_int2", "a_varbit", "d_varbit"])
+    end
+
+    it "orders varbit with length <= (8 * 126) along with boolean" do
+      ActiveRecord::Base.connection.execute <<~SQL
+        CREATE TABLE tests (
+          d_bool bool,
+          b_varbit varbit(#{8 * 126}),
+          a_bool bool,
+          c_varbit varbit(#{8 * 126})
+        )
+      SQL
+
+      dump_table_definitions_and_restore_reordered()
+
+      ordered_columns = column_order_from_postgresql(table: "tests")
+      expect(ordered_columns).to eq(["a_bool", "b_varbit", "c_varbit", "d_bool"])
     end
 
     it "orders varbit with indeterminate length after int4" do
@@ -660,7 +708,7 @@ RSpec.describe PgColumnBytePacker::PgDump do
       expect(ordered_columns).to eq(["b_int4", "c_int4", "a_varbit", "d_varbit"])
     end
 
-    it "orders text along with varbit with indeterminate length" do
+    it "orders varbit with indeterminate length along with text" do
       ActiveRecord::Base.connection.execute <<~SQL
         CREATE TABLE tests (
           d_text text,
