@@ -14,7 +14,8 @@ jobs:
     services:
       postgresql:
         image: postgres:${{ matrix.pg }}
-        ports: 5432:5432
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v2
       - name: Setup Ruby using .ruby-version file
