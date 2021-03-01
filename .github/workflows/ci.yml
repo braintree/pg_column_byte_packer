@@ -11,9 +11,11 @@ jobs:
     env: # $BUNDLE_GEMFILE must be set at the job level, so it is set for all steps
       BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
       ImageOS: ubuntu20
-    container: pgxn/pgxn-tools
+    services:
+      postgresql:
+        image: postgres:${{ matrix.pg }}
+        ports: 5432:5432
     steps:
-      - run: pg-start ${{ matrix.pg }}
       - uses: actions/checkout@v2
       - name: Setup Ruby using .ruby-version file
         uses: ruby/setup-ruby@v1
