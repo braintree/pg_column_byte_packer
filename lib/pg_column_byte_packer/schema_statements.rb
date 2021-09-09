@@ -1,5 +1,6 @@
 require "active_record"
 require "active_record/migration"
+require "active_record/connection_adapters/abstract/schema_creation"
 
 module PgColumnBytePacker
   module SchemaCreation
@@ -41,4 +42,8 @@ module PgColumnBytePacker
   end
 end
 
-ActiveRecord::ConnectionAdapters::AbstractAdapter::SchemaCreation.prepend(PgColumnBytePacker::SchemaCreation)
+if ActiveRecord.gem_version >= Gem::Version.new("6.1.0")
+  ActiveRecord::ConnectionAdapters::SchemaCreation.prepend(PgColumnBytePacker::SchemaCreation)
+else
+  ActiveRecord::ConnectionAdapters::AbstractAdapter::SchemaCreation.prepend(PgColumnBytePacker::SchemaCreation)
+end

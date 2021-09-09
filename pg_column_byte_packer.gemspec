@@ -23,15 +23,15 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rake"
+  spec.add_development_dependency "rspec"
   spec.add_development_dependency "relation_to_struct"
-  spec.add_development_dependency "db-query-matchers", "~> 0.9.0"
+  spec.add_development_dependency "db-query-matchers"
   spec.add_development_dependency "pry"
   spec.add_development_dependency "pry-byebug"
-  spec.add_development_dependency "appraisal", "~> 2.2.0"
+  spec.add_development_dependency "appraisal"
 
   spec.add_dependency "pg"
-  spec.add_dependency "activerecord", ">= 5.1", "< 6.1"
-  spec.add_dependency "pg_query"
+  spec.add_dependency "activerecord", ">= 5.1", "< 6.2"
+  spec.add_dependency "pg_query", "< 2.0"
 end
