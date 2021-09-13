@@ -8,17 +8,25 @@ RSpec.describe PgColumnBytePacker::PgDump do
   end
 
   def pg_dump_env_vars
-    config = ActiveRecord::Base.configurations["test"]
+    config = test_configuration
     {
-      "PGHOST" => config["host"],
-      "PGPORT" => config["port"],
-      "PGUSER" => config["username"],
-      "PGPASSWORD" => config["password"],
+      "PGHOST" => config[:host],
+      "PGPORT" => config[:port],
+      "PGUSER" => config[:username],
+      "PGPASSWORD" => config[:password],
     }
   end
 
+  def pool_config
+    if ActiveRecord.gem_version < Gem::Version.new("6.1.0")
+      ActiveRecord::Base.connection.pool.spec.config
+    else
+      ActiveRecord::Base.connection.pool.db_config.configuration_hash
+    end
+  end
+
   def dump_table_definitions_and_restore_reordered
-    config = ActiveRecord::Base.connection.pool.spec.config
+    config = pool_config
     Tempfile.open("structure.sql") do |file|
       run_shell_command("pg_dump --schema-only #{config[:database]} > #{file.path}", env: pg_dump_env_vars)
 
@@ -49,7 +57,7 @@ RSpec.describe PgColumnBytePacker::PgDump do
   end
 
   def dump_table_definitions_reordered
-    config = ActiveRecord::Base.connection.pool.spec.config
+    config = pool_config
     Tempfile.open("structure.sql") do |file|
       run_shell_command("pg_dump --schema-only #{config[:database]} > #{file.path}", env: pg_dump_env_vars)
 

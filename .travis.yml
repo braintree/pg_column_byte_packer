@@ -2,6 +2,7 @@ sudo: false
 language: ruby
 rvm:
   - 2.5
+  - 2.7
 env:
   global:
     - PGPORT: "5433"
@@ -10,6 +11,7 @@ env:
     - PGVERSION: "10"
     - PGVERSION: "11"
     - PGVERSION: "12"
+    - PGVERSION: "13"
 services:
   - postgresql
 before_install:
@@ -17,12 +19,13 @@ before_install:
   - sudo apt-get update
   - sudo apt-get -y install postgresql-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-contrib-$PGVERSION postgresql-client-$PGVERSION postgresql-client-common
   - sudo pg_dropcluster $PGVERSION main --stop || true
-  - sudo pg_createcluster $PGVERSION main -D /var/ramfs/postgresql/11/main -- --auth=trust
+  - sudo pg_createcluster $PGVERSION main -D /var/ramfs/postgresql/$PGVERSION/main -- --auth=trust
   - sudo pg_ctlcluster start $PGVERSION main
   - gem uninstall -v '>= 2' -i $(rvm gemdir)@global -ax bundler || true
-  - gem install bundler -v 1.15.4
+  - gem install bundler
 gemfile:
   - gemfiles/rails_5.1.gemfile
   - gemfiles/rails_5.2.gemfile
   - gemfiles/rails_6.0.gemfile
+  - gemfiles/rails_6.1.gemfile
 script: "bundle exec rake spec"

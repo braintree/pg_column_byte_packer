@@ -8,25 +8,32 @@ module PostgresqlSpecHelpers
     end
   end
 
+  def test_configuration
+    if ActiveRecord.gem_version >= Gem::Version.new("6.1.0")
+      ActiveRecord::Base.configurations.configs_for(env_name: "test").first.configuration_hash.symbolize_keys
+    else
+      ActiveRecord::Base.configurations["test"].symbolize_keys
+    end
+  end
+
   def run_on_fresh_database(&block)
-    #binding.pry
-    config = ActiveRecord::Base.configurations["test"]
+    config = test_configuration
 
     config = config.merge(
-      "database" => "#{config["database"]}_#{Process.pid}",
+      :database => "#{config[:database]}_#{Process.pid}",
     )
 
     begin
-      with_connection(config.merge("database" => "postgres")) do
-        ActiveRecord::Base.connection.create_database(config["database"], config)
+      with_connection(config.merge(:database => "postgres")) do
+        ActiveRecord::Base.connection.create_database(config[:database], config)
       end
 
       with_connection(config) do
         block.call
       end
     ensure
-      with_connection(config.merge("database" => "postgres")) do
-        ActiveRecord::Base.connection.drop_database(config["database"])
+      with_connection(config.merge(:database => "postgres")) do
+        ActiveRecord::Base.connection.drop_database(config[:database])
       end
     end
   end
