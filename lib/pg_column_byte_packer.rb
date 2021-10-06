@@ -74,8 +74,8 @@ module PgColumnBytePacker
 
       # Ignore array designations. This seems like something we could
       # so with the parsing above, and we could, and, in fact, that
-      # would also almost certain allow us to rip out most of the
-      # ActiveRecord generate alias type name matching below, but
+      # would also almost certainly allow us to rip out most of the
+      # ActiveRecord generated alias type name matching below, but
       # it would also mean a more thorough refactor below for types
       # with size designations (e.g., when ActiveRecord generates
       # "float(23)"). So we use this simple regex cleanup for now.
@@ -84,7 +84,7 @@ module PgColumnBytePacker
       # Sort out the alignment. Most of the type name matching is to
       # support the naming variants that ActiveRecord generates (often
       # they're aliases, like "integer", for which PostgreSQL internally
-      # has a different canonical name, like "int4"). There are also
+      # has a different canonical name: "int4"). There are also
       # a few cases we have to handle where the output from pgdump
       # doesn't match the canonical name in pg_type; e.g., "float8" is
       # canonical, but pgdump outputs "double precision".
