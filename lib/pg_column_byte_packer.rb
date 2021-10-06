@@ -194,6 +194,7 @@ module PgColumnBytePacker
         end
 
         if typtype == "e"
+          # Enum
           4
         else
           case typalign
@@ -203,10 +204,13 @@ module PgColumnBytePacker
             # column definition) but require no alignment.
             1
           when "s"
+            # Short alignment
             2
           when "i"
+            # Int alingment
             4
           when "d"
+            # Double alignment
             8
           else
             1
