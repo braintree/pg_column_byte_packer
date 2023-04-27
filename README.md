@@ -1,6 +1,6 @@
 # PostgreSQL Column Byte Packer
 
-[![Build Status](https://travis-ci.com/braintree/pg_column_byte_packer.svg?branch=master)](https://travis-ci.org/braintree/pg_column_byte_packer/)
+[![Build Status](https://github.com/braintree/pg_column_byte_packer/actions/workflows/ci.yml/badge.svg)](https://github.com/braintree/pg_column_byte_packer/actions/workflows/ci.yml?query=branch%3Amaster+)
 
 tl;dr: Provides facilities for laying out table column order to optimize for disk space usage both in ActiveRecord migrations and `pg_dump` generated SQL schema files. The general idea and relevant PostgreSQL internals are described in [On Rocks and Sand](https://www.2ndquadrant.com/en/blog/on-rocks-and-sand/).
 
