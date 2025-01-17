@@ -1,4 +1,5 @@
 require "bundler/setup"
+require "logger"
 require "pg_column_byte_packer"
 require "relation_to_struct"
 require "db-query-matchers"
