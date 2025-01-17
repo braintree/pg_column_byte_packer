@@ -32,6 +32,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "appraisal"
 
   spec.add_dependency "pg"
-  spec.add_dependency "activerecord", ">= 5.1", "< 7.1"
+  spec.add_dependency "activerecord", ">= 6.0", "< 8.1"
   spec.add_dependency "pg_query", "< 2.0"
 end
