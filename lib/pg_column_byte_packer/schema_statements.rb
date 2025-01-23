@@ -14,6 +14,7 @@ module PgColumnBytePacker
           :precision => col.precision,
           :scale => col.scale,
           :primary_key => col.primary_key?,
+          :enum_type => col.options[:enum_type],
         )
 
         nullable = if sql_type.match(/\A(big)?serial( primary key)?/)
