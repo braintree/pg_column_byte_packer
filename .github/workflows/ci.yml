@@ -17,6 +17,7 @@ jobs:
           - rails_7.1
           - rails_7.2
           - rails_8.0
+          - rails_8.1
     name: PostgreSQL ${{ matrix.pg }}
     runs-on: ubuntu-latest
     env: # $BUNDLE_GEMFILE must be set at the job level, so it is set for all steps
